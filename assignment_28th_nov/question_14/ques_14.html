@@ -1,0 +1,110 @@
+<!-- 
+Create an enhanced Todo List application with the following features:
+
+Add tasks to a list.
+Mark tasks as completed (indicated visually).
+Remove tasks from the list.
+Search for tasks in real time using a search bar.
+Store tasks as a JSON array in localStorage, with each task object containing:
+A unique ID.
+Task text.
+Completion status.
+Key Requirements:
+Use localStorage to persist tasks, including their completion status.
+Allow users to search tasks by typing in the search bar, displaying only matching tasks. -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <input id = "text" placeholder = "Add task here"> 
+    <select id = "option">
+        <option id="Active">Active</option>
+        <option id="Inactive">Inactive</option>
+    </select>
+    <button onclick = "addTask()">Add Task</button>
+    <button onclick = "removeTask()">Remove Task</button>
+    <div id = "Todo list"></div>
+
+    <script>
+        function addTask()
+        {
+            const taskName = document.getElementById("text").value;
+            if(taskName === "") {
+                alert("Please enter a task.");
+                return;
+            }
+            const status = document.getElementById("option").value;
+            const task = {
+                id: Date.now(),
+                text: taskName,
+                completed: status === "Active" ? false : true
+            };
+
+            let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+            tasks.push(task);
+            localStorage.setItem("tasks", JSON.stringify(tasks));
+
+            const todoList = document.getElementById("Todo list");
+            const taskDiv = document.createElement("div");
+            taskDiv.innerText = task.text + (task.completed ? " (Completed)" : " (Active)");
+            todoList.appendChild(taskDiv);
+        }
+
+        function removeTask()
+        {
+            let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+            if (tasks.length === 0) {
+                alert("No tasks to remove.");
+                return;
+            }
+            tasks.pop();
+            localStorage.setItem("tasks", JSON.stringify(tasks));
+
+            const todoList = document.getElementById("Todo list");
+            if (todoList.lastChild) {
+                todoList.removeChild(todoList.lastChild);
+            }
+        }
+        //add a unique id to each task using Date.now() to ensure uniqueness
+        window.addEventListener('load', () => {
+            const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+            const todoList = document.getElementById("Todo list");
+            const now = function() {
+                return new Date().getTime();
+            };
+            tasks.forEach(task => {
+                const taskDiv = document.createElement("div");
+                task.id = now();
+                taskDiv.innerText = task.text + (task.completed ? " (Completed)" : " (Active)");
+                todoList.appendChild(taskDiv);
+            });
+            
+
+            const searchInput = document.createElement("input");
+            searchInput.setAttribute("placeholder", "Search tasks...");
+            document.body.insertBefore(searchInput, todoList);
+
+            searchInput.addEventListener("input", function() {
+                const searchText = searchInput.value.toLowerCase();
+                const tasks = todoList.getElementsByTagName("div");
+
+                for (let i = 0; i < tasks.length; i++) {
+                    const taskText = tasks[i].innerText.toLowerCase();
+                    if (taskText.includes(searchText)) {
+                        tasks[i].style.display = "";
+                    } else {
+                        tasks[i].style.display = "none";
+                    }
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
