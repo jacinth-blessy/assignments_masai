@@ -1,110 +1,141 @@
-<!-- 
-Create an enhanced Todo List application with the following features:
-
-Add tasks to a list.
-Mark tasks as completed (indicated visually).
-Remove tasks from the list.
-Search for tasks in real time using a search bar.
-Store tasks as a JSON array in localStorage, with each task object containing:
-A unique ID.
-Task text.
-Completion status.
-Key Requirements:
-Use localStorage to persist tasks, including their completion status.
-Allow users to search tasks by typing in the search bar, displaying only matching tasks. -->
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Enhanced Todo App</title>
+
+    <style>
+        .completed {
+            text-decoration: line-through;
+            color: gray;
+        }
+        .task {
+            margin: 5px 0;
+        }
+        button {
+            margin-left: 8px;
+        }
+    </style>
 </head>
 <body>
-    <input id = "text" placeholder = "Add task here"> 
-    <select id = "option">
-        <option id="Active">Active</option>
-        <option id="Inactive">Inactive</option>
-    </select>
-    <button onclick = "addTask()">Add Task</button>
-    <button onclick = "removeTask()">Remove Task</button>
-    <div id = "Todo list"></div>
+
+    <input id="taskInput" placeholder="Add task here"> 
+    <button onclick="addTask()">Add Task</button>
+
+    <br><br>
+
+    <input id="searchBar" placeholder="Search tasks..." oninput="searchTasks()">
+
+    <h3>Todo List</h3>
+    <div id="todoList"></div>
 
     <script>
-        function addTask()
-        {
-            const taskName = document.getElementById("text").value;
-            if(taskName === "") {
+
+        // Load tasks from storage on page load
+        window.onload = function () {
+            loadTasks();
+        };
+
+        function getStoredTasks() {
+            return JSON.parse(localStorage.getItem("tasks")) || [];
+        }
+
+        function saveTasks(tasks) {
+            localStorage.setItem("tasks", JSON.stringify(tasks));
+        }
+
+        function loadTasks() {
+            const tasks = getStoredTasks();
+            const list = document.getElementById("todoList");
+            list.innerHTML = ""; // clear UI
+
+            tasks.forEach(task => displayTask(task));
+        }
+
+        function addTask() {
+            const input = document.getElementById("taskInput");
+            const text = input.value.trim();
+
+            if (text === "") {
                 alert("Please enter a task.");
                 return;
             }
-            const status = document.getElementById("option").value;
+
             const task = {
                 id: Date.now(),
-                text: taskName,
-                completed: status === "Active" ? false : true
+                text: text,
+                completed: false
             };
 
-            let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+            const tasks = getStoredTasks();
             tasks.push(task);
-            localStorage.setItem("tasks", JSON.stringify(tasks));
+            saveTasks(tasks);
 
-            const todoList = document.getElementById("Todo list");
-            const taskDiv = document.createElement("div");
-            taskDiv.innerText = task.text + (task.completed ? " (Completed)" : " (Active)");
-            todoList.appendChild(taskDiv);
+            displayTask(task);
+            input.value = "";
         }
 
-        function removeTask()
-        {
-            let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-            if (tasks.length === 0) {
-                alert("No tasks to remove.");
-                return;
-            }
-            tasks.pop();
-            localStorage.setItem("tasks", JSON.stringify(tasks));
-
-            const todoList = document.getElementById("Todo list");
-            if (todoList.lastChild) {
-                todoList.removeChild(todoList.lastChild);
-            }
-        }
-        //add a unique id to each task using Date.now() to ensure uniqueness
-        window.addEventListener('load', () => {
-            const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
-            const todoList = document.getElementById("Todo list");
-            const now = function() {
-                return new Date().getTime();
-            };
-            tasks.forEach(task => {
-                const taskDiv = document.createElement("div");
-                task.id = now();
-                taskDiv.innerText = task.text + (task.completed ? " (Completed)" : " (Active)");
-                todoList.appendChild(taskDiv);
-            });
-            
-
-            const searchInput = document.createElement("input");
-            searchInput.setAttribute("placeholder", "Search tasks...");
-            document.body.insertBefore(searchInput, todoList);
-
-            searchInput.addEventListener("input", function() {
-                const searchText = searchInput.value.toLowerCase();
-                const tasks = todoList.getElementsByTagName("div");
-
-                for (let i = 0; i < tasks.length; i++) {
-                    const taskText = tasks[i].innerText.toLowerCase();
-                    if (taskText.includes(searchText)) {
-                        tasks[i].style.display = "";
-                    } else {
-                        tasks[i].style.display = "none";
-                    }
+        function toggleTask(id) {
+            let tasks = getStoredTasks();
+            tasks = tasks.map(task => {
+                if (task.id === id) {
+                    task.completed = !task.completed;
                 }
+                return task;
             });
-        });
+
+            saveTasks(tasks);
+            loadTasks();
+        }
+
+        function deleteTask(id) {
+            let tasks = getStoredTasks();
+            tasks = tasks.filter(task => task.id !== id);
+            saveTasks(tasks);
+            loadTasks();
+        }
+
+        function displayTask(task) {
+            const list = document.getElementById("todoList");
+
+            const div = document.createElement("div");
+            div.className = "task";
+
+            const textSpan = document.createElement("span");
+            textSpan.innerText = task.text;
+            if (task.completed) textSpan.classList.add("completed");
+
+            const toggleBtn = document.createElement("button");
+            toggleBtn.innerText = task.completed ? "Undo" : "Complete";
+            toggleBtn.onclick = () => toggleTask(task.id);
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.innerText = "Delete";
+            deleteBtn.onclick = () => deleteTask(task.id);
+
+            div.appendChild(textSpan);
+            div.appendChild(toggleBtn);
+            div.appendChild(deleteBtn);
+
+            list.appendChild(div);
+        }
+
+        function searchTasks() {
+            const searchText = document.getElementById("searchBar").value.toLowerCase();
+            const tasks = getStoredTasks();
+
+            const filtered = tasks.filter(task =>
+                task.text.toLowerCase().includes(searchText)
+            );
+
+            const list = document.getElementById("todoList");
+            list.innerHTML = ""; 
+
+            filtered.forEach(task => displayTask(task));
+        }
 
     </script>
+
 </body>
 </html>
