@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Todo App</title>
+
+    <style>
+        .completed {
+            text-decoration: line-through;
+            color: gray;
+        }
+        .task {
+            margin: 8px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            width: 300px;
+        }
+        button {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Todo List (First 20 from API)</h2>
+    <div id="todoList"></div>
+
+    <script>
+
+        // -----------------------------
+        // MAIN ENTRY POINT
+        // -----------------------------
+        window.onload = function () {
+            initializeTodos();
+        };
+
+        // -----------------------------
+        // FETCH + STORE
+        // -----------------------------
+        async function initializeTodos() {
+            let stored = getStoredTodos();
+
+            // If storage empty → fetch & save first 20 todos
+            if (stored.length === 0) {
+                const fetched = await fetchTodosFromAPI();
+                const first20 = fetched.slice(0, 20);
+                saveTodos(first20);
+            }
+
+            renderTodos();
+        }
+
+        async function fetchTodosFromAPI() {
+            const res = await fetch("https://jsonplaceholder.typicode.com/todos");
+            return await res.json();
+        }
+
+        // -----------------------------
+        // LOCAL STORAGE HELPERS
+        // -----------------------------
+        function getStoredTodos() {
+            return JSON.parse(localStorage.getItem("todos")) || [];
+        }
+
+        function saveTodos(todos) {
+            localStorage.setItem("todos", JSON.stringify(todos));
+        }
+
+        // -----------------------------
+        // RENDERING
+        // -----------------------------
+        function renderTodos() {
+            const list = document.getElementById("todoList");
+            const todos = getStoredTodos();
+
+            list.innerHTML = ""; // clear UI
+
+            todos.forEach(todo => displayTodoItem(todo));
+        }
+
+        function displayTodoItem(todo) {
+            const list = document.getElementById("todoList");
+
+            const div = document.createElement("div");
+            div.className = "task";
+
+            const title = document.createElement("span");
+            title.innerText = todo.title;
+
+            if (todo.completed) {
+                title.classList.add("completed");
+            }
+
+            const status = document.createElement("span");
+            status.innerHTML = ` &nbsp; <b>[${todo.completed ? "Completed" : "Pending"}]</b>`;
+
+            const delBtn = document.createElement("button");
+            delBtn.innerText = "Delete";
+            delBtn.onclick = () => deleteTodo(todo.id);
+
+            div.appendChild(title);
+            div.appendChild(status);
+            div.appendChild(delBtn);
+
+            list.appendChild(div);
+        }
+
+        // -----------------------------
+        // DELETE TODO
+        // -----------------------------
+        function deleteTodo(id) {
+            let todos = getStoredTodos();
+            todos = todos.filter(todo => todo.id !== id);
+            saveTodos(todos);
+            renderTodos();  // re-render UI instantly
+        }
+
+    </script>
+
+</body>
+</html>
