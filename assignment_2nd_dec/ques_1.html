@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Book Management - Firebase (Demo)</title>
+  <style>
+    :root{--accent:#2563eb;--muted:#6b7280}
+    body{font-family:Inter, system-ui, Arial, sans-serif;margin:0;background:#f7fafc;color:#111}
+    .app{display:flex;min-height:100vh}
+    /* Sidebar */
+    .sidebar{width:320px;background:#fff;border-right:1px solid #e6e9ef;padding:20px;box-sizing:border-box}
+    .logo{font-weight:700;color:var(--accent);margin-bottom:8px}
+    form{display:grid;gap:10px}
+    label{font-size:13px;color:var(--muted)}
+    input[type=text],input[type=number]{padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px}
+    .btn{display:inline-block;padding:10px 12px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+    .small{font-size:13px;padding:8px 10px}
+
+    /* Main */
+    .main{flex:1;padding:24px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    @media (max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:640px){.grid{grid-template-columns:repeat(1,1fr)} .sidebar{display:none}}
+
+    .card{background:#fff;border-radius:12px;padding:12px;box-shadow:0 6px 18px rgba(16,24,40,0.06);display:flex;flex-direction:column}
+    .cover{height:170px;border-radius:8px;background-size:cover;background-position:center;margin-bottom:10px}
+    .title{font-weight:600;margin-bottom:6px}
+    .meta{color:var(--muted);font-size:13px;margin-bottom:8px}
+    .card-actions{margin-top:auto;display:flex;gap:8px}
+    .actions-left{display:flex;gap:8px}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.5);display:flex;align-items:center;justify-content:center}
+    .modal{background:#fff;padding:18px;border-radius:12px;max-width:520px;width:94%}
+
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .heading{font-size:20px;font-weight:700}
+    .muted{color:var(--muted)}
+
+    .tiny{font-size:12px;color:var(--muted)}
+    .populate{margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">Book Manager</div>
+      <div class="muted tiny">Realtime CRUD with Firebase Firestore</div>
+
+      <hr style="margin:12px 0;border:none;border-top:1px solid #eef2f7">
+
+      <form id="addBookForm">
+        <div>
+          <label for="title">Title</label>
+          <input id="title" name="title" type="text" placeholder="Book title" required />
+        </div>
+        <div>
+          <label for="author">Author</label>
+          <input id="author" name="author" type="text" placeholder="Author name" required />
+        </div>
+        <div>
+          <label for="price">Price (INR)</label>
+          <input id="price" name="price" type="number" step="0.01" placeholder="199.00" required />
+        </div>
+        <div>
+          <label for="image">Image URL</label>
+          <input id="image" name="image" type="text" placeholder="https://...jpg" required />
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button class="btn" type="submit">Add Book</button>
+          <button id="clearForm" type="button" class="btn ghost">Clear</button>
+        </div>
+      </form>
+
+      <button id="populate" class="btn small populate">Populate 5 Dummy Books (dev)</button>
+      <div class="tiny" style="margin-top:10px">NOTE: Replace <code>firebaseConfig</code> with your project's config (see comment inside the HTML file).</div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div class="heading">All Books</div>
+          <div class="muted tiny">Books are shown as cards — updates are realtime.</div>
+        </div>
+        <div class="tiny muted">Firestore collection: <strong>books</strong></div>
+      </div>
+
+      <div id="booksGrid" class="grid"></div>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalRoot" style="display:none"></div>
+
+  <!-- Firebase + App JS -->
+  <script type="module">
+    // --- IMPORTANT: BEFORE RUNNING ---
+    // 1) Create a Firebase project at https://console.firebase.google.com/
+    // 2) Enable Firestore (Native mode).
+    // 3) In "Project Settings" -> "General", copy your firebaseConfig and paste below.
+    // 4) For development you can set Firestore rules to allow reads/writes; for production secure them properly.
+
+    // ======= PASTE YOUR FIREBASE CONFIG BELOW (replace the placeholders) =======
+    const firebaseConfig = {
+      apiKey: "AIzaSyAbq4BOwv5jd574ozjdBpOa_YqrtDBosdM",
+        authDomain: "book-management-app-19e12.firebaseapp.com",
+        projectId: "book-management-app-19e12",
+        storageBucket: "book-management-app-19e12.firebasestorage.app",
+        messagingSenderId: "558576689536",
+        appId: "1:558576689536:web:05714858cd4afab8e6a165",
+        measurementId: "G-48GPY7LSMF"
+    };
+    // =======================================================================
+
+    // Using Firebase modular SDK via CDN
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+    import {
+      getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, getDocs
+    } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+
+    // init
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const booksCol = collection(db, 'books');
+
+    // DOM
+    const booksGrid = document.getElementById('booksGrid');
+    const addBookForm = document.getElementById('addBookForm');
+    const populateBtn = document.getElementById('populate');
+    const clearFormBtn = document.getElementById('clearForm');
+    const modalRoot = document.getElementById('modalRoot');
+
+    // Render helpers
+    function createCard(id, data){
+      const container = document.createElement('div');
+      container.className = 'card';
+
+      const cover = document.createElement('div');
+      cover.className = 'cover';
+      cover.style.backgroundImage = `url('${data.coverImageURL || placeholderImage()}')`;
+      container.appendChild(cover);
+
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = data.title || 'Untitled';
+      container.appendChild(title);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `by ${data.author || 'Unknown'} — ₹ ${Number(data.price||0).toFixed(2)}`;
+      container.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'card-actions';
+
+      const left = document.createElement('div');
+      left.className = 'actions-left';
+
+      const btnUpdate = document.createElement('button');
+      btnUpdate.className = 'btn small';
+      btnUpdate.textContent = 'Update Author';
+      btnUpdate.onclick = () => updateAuthorFlow(id, data.author);
+
+      const btnDelete = document.createElement('button');
+      btnDelete.className = 'btn small ghost';
+      btnDelete.textContent = 'Delete';
+      btnDelete.onclick = () => deleteBook(id);
+
+      left.appendChild(btnUpdate);
+      left.appendChild(btnDelete);
+
+      const btnView = document.createElement('button');
+      btnView.className = 'btn small';
+      btnView.textContent = 'View Details';
+      btnView.onclick = () => showModal(data);
+
+      actions.appendChild(left);
+      actions.appendChild(btnView);
+
+      container.appendChild(actions);
+      return container;
+    }
+
+    function placeholderImage(){
+      return 'https://via.placeholder.com/400x250?text=No+Image';
+    }
+
+    function renderBooks(snapshotDocs){
+      // snapshotDocs: array of {id, data}
+      booksGrid.innerHTML = '';
+      snapshotDocs.forEach(d=>{
+        const card = createCard(d.id, d.data);
+        booksGrid.appendChild(card);
+      });
+    }
+
+    // Realtime listener
+    // Keeps UI synced with Firestore collection 'books'
+    const q = query(booksCol, orderBy('title'));
+    onSnapshot(q, (querySnapshot) => {
+      const docs = [];
+      querySnapshot.forEach(docSnap => {
+        docs.push({ id: docSnap.id, data: docSnap.data() });
+      });
+      renderBooks(docs);
+    }, (err)=>{
+      console.error('Realtime listener error', err);
+    });
+
+    // Add book
+    addBookForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const title = addBookForm.title.value.trim();
+      const author = addBookForm.author.value.trim();
+      const price = parseFloat(addBookForm.price.value) || 0;
+      const image = addBookForm.image.value.trim() || placeholderImage();
+
+      try{
+        await addDoc(booksCol, {
+          title, author, price, coverImageURL: image, createdAt: new Date()
+        });
+        addBookForm.reset();
+      } catch(err){
+        console.error('Add book failed', err);
+        alert('Add failed — check console for details');
+      }
+    });
+
+    clearFormBtn.addEventListener('click', ()=> addBookForm.reset());
+
+    // Update author flow — prompt and update
+    async function updateAuthorFlow(id, currentAuthor){
+      const newAuthor = prompt('Enter new author name', currentAuthor || '');
+      if(newAuthor === null) return; // cancelled
+      const docRef = doc(db, 'books', id);
+      try{
+        await updateDoc(docRef, { author: newAuthor });
+      } catch(err){
+        console.error('Update failed', err);
+        alert('Update failed — check console');
+      }
+    }
+
+    // Delete
+    async function deleteBook(id){
+      if(!confirm('Delete this book?')) return;
+      try{
+        await deleteDoc(doc(db, 'books', id));
+      } catch(err){
+        console.error('Delete failed', err);
+        alert('Delete failed — check console');
+      }
+    }
+
+    // Modal
+    function showModal(data){
+      modalRoot.innerHTML = '';
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      backdrop.onclick = () => { modalRoot.style.display = 'none'; };
+
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.onclick = (e)=> e.stopPropagation();
+
+      modal.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <strong>${escapeHtml(data.title || 'Untitled')}</strong>
+            <div class="tiny muted">by ${escapeHtml(data.author || 'Unknown')}</div>
+          </div>
+          <div class="tiny muted">₹ ${Number(data.price||0).toFixed(2)}</div>
+        </div>
+        <div style="margin-bottom:12px"><img src="${data.coverImageURL||placeholderImage()}" alt="cover" style="width:100%;border-radius:8px" /></div>
+        <div class="tiny muted">Created: ${data.createdAt ? (new Date(data.createdAt.seconds ? data.createdAt.seconds*1000 : data.createdAt)).toLocaleString() : '—'}</div>
+        <div style="text-align:right;margin-top:12px"><button class="btn" id="closeModal">Close</button></div>
+      `;
+
+      backdrop.appendChild(modal);
+      modalRoot.appendChild(backdrop);
+      modalRoot.style.display = 'block';
+
+      document.getElementById('closeModal').onclick = ()=>{ modalRoot.style.display = 'none'; };
+    }
+
+    function escapeHtml(str){
+      return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    }
+
+    // Dummy populate for development: adds 5 sample books if collection empty
+    populateBtn.addEventListener('click', async ()=>{
+      try{
+        const snapshot = await getDocs(booksCol);
+        if(!snapshot.empty){
+          if(!confirm('Collection not empty. Still add 5 sample books?')) return;
+        }
+        const samples = [
+          {title:'The Silent Spring', author:'Rachel Carson',price:299,coverImageURL:'https://picsum.photos/seed/book1/600/400'},
+          {title:'Atomic Habits', author:'James Clear',price:499,coverImageURL:'https://picsum.photos/seed/book2/600/400'},
+          {title:'The Alchemist', author:'Paulo Coelho',price:349,coverImageURL:'https://picsum.photos/seed/book3/600/400'},
+          {title:'Thinking, Fast and Slow', author:'Daniel Kahneman',price:599,coverImageURL:'https://picsum.photos/seed/book4/600/400'},
+          {title:'The Psychology of Money', author:'Morgan Housel',price:399,coverImageURL:'https://picsum.photos/seed/book5/600/400'}
+        ];
+        for(const s of samples){
+          await addDoc(booksCol, {...s, createdAt:new Date()});
+        }
+        alert('Sample books added — UI will update automatically.');
+      } catch(err){
+        console.error('Populate failed', err);
+        alert('Populate failed — check console.');
+      }
+    });
+
+  </script>
+</body>
+</html>
