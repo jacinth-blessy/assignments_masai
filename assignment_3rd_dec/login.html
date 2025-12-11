@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+</head>
+<body>
+
+<div id="navbar"></div>
+<h2>Login</h2>
+
+<input id="email" placeholder="Email" /><br><br>
+<input id="password" type="password" placeholder="Password" /><br><br>
+<button id="loginBtn">Login</button>
+
+<div id="footer"></div>
+
+<script type="module">
+  import { navbar } from "./navbar.js";
+  import { footer } from "./footer.js";
+
+  document.getElementById("navbar").innerHTML = navbar();
+  document.getElementById("footer").innerHTML = footer();
+
+  document.getElementById("loginBtn").addEventListener("click", () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const user = JSON.parse(localStorage.getItem("user"));
+
+    if (!user) {
+      alert("No user found. Please signup first.");
+      return;
+    }
+
+    if (email === user.email && password === user.password) {
+      localStorage.setItem("loggedIn", "true");
+      window.location.href = "todos.html";
+    } else {
+      alert("Invalid details");
+    }
+  });
+</script>
+
+</body>
+</html>
